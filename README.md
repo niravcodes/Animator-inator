@@ -7,6 +7,8 @@ Dot Matrix Displays. And it also contains a small JavaScript program that you ca
 for the Dot Matrix Display setup. The program runs on your browser, and exports a header file that you can
 compile your firmware with and flash into the AVR.
 
+Read [this post](https://nirav.com.np/2019/06/12/animating-led-dot-matrix-displays-with-avr.html) for all details.
+
 ## How to use?
 The overall procedure varies from set-up to set-up. It would be extremely coincidental if you could use these
 programs as-is without modification. However, the general procedure should be:
