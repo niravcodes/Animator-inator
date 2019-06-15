@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html>
+<head>
+	 <meta charset="UTF-8">
+	<title>Animator-inator</title>
+	<style>
+		*{margin:0; padding:0;}
+		#screen{
+			background: #333;
+			float:left;
+			margin-top:20px;
+		}
+		#toolbox{
+			float:left;
+			height:610px;
+			padding:15px;
+			width:180px;
+		}
+		#documentation{
+			float:left;
+			width:280px;
+			margin-left:40px;
+		}
+		#everything{
+			margin:10px 0;
+			margin-left:60px;
+			height:100vh;
+		}
+		#frames{
+			width: 100%;
+			height: 240px;
+			overflow-y: auto;
+		}
+		#frames button{
+			width:100%;
+			background: none;
+			border: none;
+			padding:4px;
+			color:#0af;
+			margin:0;
+		}
+		.btselframe::before{content:"->";color:#00f;}
+		#data{
+			padding-top:20px;
+			clear:both;
+		}
+		#data textarea{
+			height:300px;
+			display: block;
+			width:100%;
+		}
+		#leftdata{
+			width:400px;
+			width:40vw;
+			display:inline-block;
+			margin:0 20px;
+		}
+		#rightdata{
+			width:400px;
+			width:40vw;
+			float:left;
+			display:inline-block;
+			margin:0 20px;
+		}
+		button{
+			width:100%;
+			margin-top:4px;
+		}
+		h1{
+			margin-top:30px;
+		}
+		#headeroutput{
+			margin-bottom:50px;
+		}
+		p{
+			margin-bottom:15px;
+			font-size:16px;
+		}
+		li{
+			font-size:14px;
+		}
+	</style>
+	<script src="FileSaver.js"></script>	
+</head>
+<body oncontextmenu="return false">
+	<div id = "everything">
+		<h1>Animator-inator</h1>
+		<div id= "subtitle">P10(1r) Dot matrix Display Animation Software.<br>
+			Developed by Nirav at <a href="https://nirav.com.np">nirav.com.np</a></div>
+		<canvas id="screen" width="480px" height="480px"></canvas>
+		<div id = "toolbox">
+			On Frame <span id="frame_number_display">0</span>
+			<div id = "frames">
+			</div>
+			<button onclick="play()">Play</button>
+			<button onclick="pause()">pause</button>
+			<button onclick="onionskintoggle()">Onion Skin</button><br>
+			Number of frames <br>
+			<div id = "frame_range_display">10</div>
+			<input type="range" min="1" max="100" value="10" class="slider" id="frameRange" onchange="changeframerange(this.value)">
+
+			<br>
+			<button onclick="NewFrame()">New Frame (F5)</button>
+			<button onclick="NewEmptyFrame()">New Empty Frame(F6)</button>
+			<br>
+
+			<button onclick="JSONWrite()">Output to JSON</button>
+			<button onclick="output_to_header()">Output to C Header</button>
+		</div>
+		<div id="documentation">
+			<p>This software is written for two 32x16 Dot-Matrix displays wired in serial and placed one on top of other to create a square frame.</p>
+			<p>Click and Drag to draw pixels. Right-click and drag to erase pixels. No selection and copy implemented as of now. (Use a Mouse)</p>
+			<p>Use the Number of Frames slider to increase the number of frames exported.</p>
+			<p>Keyboard Shortcuts:
+				<ul>
+					<li>Ctrl + Z undoes a change</li>
+					<li>Space plays and pauses the animation</li>
+					<li>Ctrl + C copies a frame</li>
+					<li>Ctrl + V pastes the frame</li>
+					<li>Ctrl + S saves current animation in Browser storage</li>
+					<li>Ctrl + O retrieves the saved animation</li>
+					<li>Ctrl + Shift + S exports the header file.</li>
+					<li>Left arrow(←) and Right arrow(→) navigate between frames.</li>
+
+				</ul>
+			</p>
+		</div>
+		<br>
+		<div id = "data">
+			<div id="leftdata">
+				JSON data:<br>
+				<textarea id="jsonoutput"></textarea>
+				<button onclick="parseanim()" style="width:200px; display: block">Read the JSON input</button>
+			</div>
+			<div id="rightdata">
+				Header Data:<br>
+				<textarea id="headeroutput"></textarea>
+			</div>
+		</div>
+
+	<script>
+		const maxframes = 80;
+
+		var databmp = createArray(maxframes, 32,32)
+		var databmp2;
+		var ctrlzbuffer = []
+		clearArray(databmp)
+
+		var frame_no = 0
+		var copied_frame = 0;
+		var total_frames = 10;
+		var onionskin = false;
+
+		// variables for drag
+			var clicked = false;
+			var clickxy = [0,0];
+			var clickbutton = 9;
+			var selectpixels = false;
+		// end variables for drag
+
+		var canvas = document.getElementById('screen')
+		canvas.addEventListener("mousedown", clickscr, false);
+		canvas.addEventListener("mousemove", draw, false);
+		canvas.addEventListener("mouseup", mouseup1)
+		var cv = canvas.getContext("2d");
+
+		drawgrid();
+		populateframebuttons();
+		document.getElementById("btframe0").classList.add("btselframe")
+
+		function mouseup1(event){
+			clicked = false;
+			if (selectpixels){
+				selectpixels = false;
+				var rect = canvas.getBoundingClientRect();
+			    var x = event.clientX - rect.left;
+			    var y = event.clientY - rect.top;
+			    var pixelx = Math.floor(x/15);
+			    var pixely = Math.floor(y/15);
+
+			    //start pixels in pixelxy,
+			    // end pixels in pixelx, pixely
+
+
+			}
+		}
+		function draw(event){
+			if(clicked && clickbutton == 0){
+				var rect = canvas.getBoundingClientRect();
+			    var x = event.clientX - rect.left;
+			    var y = event.clientY - rect.top;
+			    var pixelx = Math.floor(x/15);
+			    var pixely = Math.floor(y/15);
+
+				    databmp[frame_no][pixely][pixelx] = 1;
+				    drawgrid();
+			}
+			else if (clicked && clickbutton == 2){
+				var rect = canvas.getBoundingClientRect();
+			    var x = event.clientX - rect.left;
+			    var y = event.clientY - rect.top;
+			    var pixelx = Math.floor(x/15);
+			    var pixely = Math.floor(y/15);
+
+			    databmp[frame_no][pixely][pixelx] = 0;
+			    drawgrid();
+			}
+			else if (clicked && clickbutton == 1){
+				selectpixels = true	
+				cv.strokeStyle = 'rgb(0, 0, 110)'
+
+			}
+		}	
+		function clickscr(event){
+			ctrlzbuffer = deepcopy (databmp[frame_no])
+
+			var rect = canvas.getBoundingClientRect();
+		    var x = event.clientX - rect.left;
+		    var y = event.clientY - rect.top;
+		    var pixelx = Math.floor(x/15);
+		    var pixely = Math.floor(y/15);
+
+		    //for clickdrag draw
+			clicked = true;
+			clickxy = [pixelx, pixely]
+			clickbutton = event.button;
+
+		}	
+		function drawgrid(){
+			var i,j;
+			for (i=0; i < 32; i++){
+				for (j=0; j<32; j++){
+					cv.fillStyle = 'rgb('+i+', '+j+', 0)'
+					cv.strokeStyle = 'rgb(110, 110, 110)'
+					if (databmp[frame_no][j][i])  cv.fillStyle= 'rgb(256, 0,0)';
+					cv.fillRect(i*15, j*15, i*15+15, j*15+15)
+
+					cv.fillStyle = 'rgba(256, 0, 0, 0.30)'
+					if (frame_no && onionskin && databmp[frame_no-1][j][i]){
+						cv.fillRect(i*15, j*15, i*15+15, j*15+15)
+					}
+					cv.strokeRect(i*15, j*15, i*15+15, j*15+15)
+				}
+			}
+		}
+		function createArray(length) {
+			var arr = new Array(length || 0),
+			i = length;
+			if (arguments.length > 1) {
+				var args = Array.prototype.slice.call(arguments, 1);
+				while(i--) arr[length-1 - i] = createArray.apply(this, args);
+			}
+			return arr;
+		}
+		function clearArray(array, size){
+			if (size == null) size = maxframes
+			var i,j,k;
+			for (i = 0; i<size; i++){
+				for (j=0; j <32; j++){
+					for (k=0; k < 32; k++)
+						array[i][j][k] = 0; 
+				}
+			}
+		}
+		var playtimer;
+		var cur_fr_sv;
+		var isplaying = false;
+		function play(){
+			cur_fr_sv = frame_no;
+			playtimer = setTimeout(play_inner, 100);
+			isplaying = true;
+			function play_inner(){
+				switchframe(frame_no); 
+				frame_no+=1;
+				if (frame_no > total_frames) frame_no = 0;
+				playtimer = setTimeout(play_inner, 100)
+			}
+		}
+		function pause(){
+			clearTimeout(playtimer)
+			isplaying = false;
+			switchframe(cur_fr_sv)
+		}
+		function switchframe(i){
+			frame_no = i;
+			if (document.getElementsByClassName("btselframe")[0])
+				document.getElementsByClassName("btselframe")[0].classList.remove("btselframe")
+			document.getElementById("btframe" + i).classList.add("btselframe")
+			drawgrid();
+			document.getElementById("frame_number_display").innerHTML = "" + i
+		}
+		function populateframebuttons(){
+			framediv=document.getElementById("frames")
+			var button,i;
+			for (var i = 0; i < maxframes; i++){
+				framediv.innerHTML += "<button onclick='switchframe(" + i + ")' id='btframe" + i + "'>Frame "+i+"</button>"
+			}
+		}
+		function onionskintoggle(){
+			onionskin = !onionskin
+			drawgrid();
+		}
+		function NewEmptyFrame(){
+			switchframe(++frame_no)
+		}
+		function NewFrame(){
+			databmp[frame_no+1] = deepcopy(databmp[frame_no]);
+			switchframe(++frame_no)
+
+		}
+		function changeframerange(val){
+			document.getElementById("frame_range_display").innerHTML = val;
+			total_frames = val;
+		}
+		function JSONWrite(){
+			document.getElementById("jsonoutput").innerHTML = JSON.stringify(databmp);
+		}
+		function parseanim(){
+			if (document.getElementById("jsonoutput").value)
+				databmp = JSON.parse(document.getElementById("jsonoutput").value);
+			else
+				alert("please paste previously copied data");
+		}
+
+
+		function output_to_header(){
+			//now this function is very hardware configuration dependent 
+			// Caveats:
+			// 1. The 32x32 pixel matrix shown in the animation panel is an abstraction.
+			// 		In reality, the H/W config is of 2 side by side 32x16 panels, 
+			// 		with the top rotated by 180degree
+			// 2. Because the matrixes are designed to be stacked in length rather than height,
+			// 		they think that they are joined by the sides. In short, the produced animtation
+			//		data needs to be written in the sequence of: 4 bytes top panel and 4 bytes bottom panel
+			//		But with the top rotated 180* not just in orientation
+
+			// Wow, this is going to be tough
+			// Lets generate two separate 32x16 panels, one of which we will rotate 
+			// somehow
+			var i, j, k;
+
+			document.getElementById("headeroutput").value =
+				"const unsigned char animation["+total_frames+"][16][8] PROGMEM = {\n";
+
+			for (var fms=0; fms < total_frames; fms++){
+				// The two loops generate data for top and bottom portion of 
+				// the matrix
+				var bytearray1 = [];
+				var bytearray2 = [];
+				for (i = 0; i < 16; i++){
+					for (j=0; j < 4; j++){
+						for (k = 0; k < 8; k++){
+							if (databmp[fms][i][j*8+k] === 1)
+								bytearray1[i*4+j] = 0x80>>k | bytearray1[i*4+j]
+						}
+					}
+				}
+				for (i = 0; i < 16; i++){
+					for (j=0; j < 4; j++){
+						for (k = 0; k < 8; k++){
+							if (databmp[fms][16+i][j*8+k] === 1)
+								bytearray2[i*4+j] = 0x80>>k | bytearray2[i*4+j]
+						}
+					}
+				}
+
+				var a = "";
+				var byte_being_addressed;
+				for (i=0; i < 16; i++){
+					for (var j = 0; j < 4; j++){
+						byte_addressed = (15-i)*4 + (3-j);
+						if (bytearray1[byte_addressed])
+							a += " " + reverse_byte(bytearray1[byte_addressed])+ ","
+						else 
+							a+= " 0, "
+					}
+					for (var j = 0; j < 4; j++){
+						if (bytearray2[i*4+j])
+							a += " " + bytearray2[i*4+j] + ","
+						else 
+							a+= " 0, "
+					}
+				}
+
+				document.getElementById("headeroutput").value += a;
+		}
+		document.getElementById("headeroutput").value +=
+			"};\nunsigned char framecount=" + total_frames + ";";
+
+		function reverse_byte(byte){
+			var a;
+			for (var i = 0; i < 8; i++){
+				if (byte & (0x80>>i))
+					a = a | 1<<i;
+			}
+			return a;
+		}
+		}
+
+
+		// shortcut keys
+		// CTRL + S
+		document.addEventListener("keydown", function(e){
+			if (e.ctrlKey && e.shiftKey && e.keyCode == 83){
+
+				output_to_header();
+				var blob = new Blob([document.getElementById("headeroutput").value],
+	                { type: "text/plain;charset=utf-8" });
+				saveAs(blob, "matrixdata.h");
+			}
+			else if (e.ctrlKey && e.keyCode == 83){
+				e.preventDefault();
+				window.localStorage.setItem("saveddata", JSON.stringify(databmp));
+				alert("saved")
+			}
+			else if (e.ctrlKey && e.keyCode == 79){
+				e.preventDefault();
+				var r = confirm("Sure open a previously saved doc?");
+				if (r == true) {
+					databmp = JSON.parse(window.localStorage.getItem("saveddata"));
+					if (databmp.length < maxframes) {
+						// for (var i = databmp.length; i < maxframes; i++)
+						databmp2 = createArray(maxframes-databmp.length, 32, 32)
+						databmp2[1][0][0] = 0;
+						clearArray(databmp2, maxframes-databmp);
+						databmp = databmp.concat(databmp2)
+
+					}
+					drawgrid();
+				} else {
+				} 
+			}
+			//ctrl c and v
+			else if (e.ctrlKey && e.keyCode == 67){
+				copied_frame = frame_no;
+			}
+			else if (e.ctrlKey && e.keyCode == 86){
+				databmp[frame_no] = deepcopy(databmp[copied_frame]);
+				drawgrid();
+			}
+			else if (e.keyCode == 37){
+				if (!(frame_no == 0))
+					switchframe(--frame_no)
+			}
+			else if (e.keyCode == 39){
+				if (!(frame_no >= total_frames))
+					switchframe(++frame_no)
+			}
+			else if (e.ctrlKey && e.keyCode == 90){
+				e.preventDefault();
+				var tempbuf = [];
+				tempbuf = deepcopy(databmp[frame_no])
+				databmp[frame_no] = deepcopy(ctrlzbuffer);
+				drawgrid();
+				ctrlzbuffer = deepcopy (tempbuf)
+			}
+			else if(e.keyCode == 0x20){
+				e.preventDefault();
+				if (isplaying)
+					pause();
+				else
+					play();
+			}
+		})
+		function deepcopy (arr) {
+			let copy = [];
+			arr.forEach(elem => {
+				if(Array.isArray(elem)){
+					copy.push(deepcopy(elem))
+				}else{
+					copy.push(elem)
+				}
+			})
+			return copy;
+		}	
+
+	</script>
+</body>
+</html>
