@@ -9,6 +9,8 @@ compile your firmware with and flash into the AVR.
 
 Read [this post](https://nirav.com.np/2019/06/12/animating-led-dot-matrix-displays-with-avr.html) for all details.
 
+![screenshot of animator-inator](https://nirav.com.np/assets/img/Screenshot-2019-6-15%20Animator-inator.png)
+
 ## How to use?
 The overall procedure varies from set-up to set-up. It would be extremely coincidental if you could use these
 programs as-is without modification. However, the general procedure should be:
